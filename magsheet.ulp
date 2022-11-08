@@ -1,0 +1,456 @@
+/*
+MIT License
+
+Copyright (c) 2021 ngammarano
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+#usage "This ULP places a square coil in a board.<p>"
+       "This ULP must be started from a board.<p>"
+       "The parameters of the coil are:<ul>"
+       "<li>the number of turns 'n'</li>"
+       "<li>the wire width 'W' in mm</li>"
+       "<li>the distance between wires 'S' in mm</li>"
+       "<li>the internal square length 'din' in mm</li></ul>"
+       "A via is placed to connect top and bottom layers of the coil as shown in the image. You must specify:<ul>"
+       "<li>the via diameter in mm</li>"
+       "<li>the via drill diameter in mm</li></ul>"
+       "The starting point of the square coil is the lower left corner of the top layer of the coil. The coordinates you want this point to be must be specified:<ul>"
+       "<li>the horizontal offset x in mm</li>"
+       "<li>the vertical offset y in mm</li></ul>"
+       "The signal name of the coil (top, bottom layers of the coil and the via) must also be specified.<p>"
+       "<author>Author: <a href='https://github.com/ngammarano/square-coil'> Nicolas Gammarano</a></author>";
+
+/**
+ * Parameters of the dialog box.
+ */
+int n = 30;                     // number of turns
+real w = 0.15;                     // wire width in mm
+real s = 0.15;                   // distance between wires in mm
+real din = 1;                   // internal square length in mm
+real diameter = 0.4;            // diameter of the vias in mm
+real drill = 0.2;               // drill diameter of the vias in mm
+int layer = 1;                  // layer number
+real offsetX = 0;               // horizontal offset in mm
+real offsetY = 0;               // vertical offset in mm
+string signalName = "V_COIL";   // signal name
+
+/**
+ * Variables to execute a command.
+ */
+string cmd = "";
+string strCmd;
+
+/**
+ * Function executed when pressing "OK" in the dialog box.
+ */
+void doit(void) {
+    // Change grid to mm.
+    cmd += "grid mm;\n";
+    // Change layer to 1 (top).
+    cmd += "layer 1;\n";
+    // Start drawing the polygon (width: 0).
+    cmd += "polygon " + signalName + " 0\n";
+    
+    // Length of the outer square.
+    real dout = din + 2*(n*w + (n-1)*s);
+    // Coordinates of the current point.
+    real x = offsetX;
+    real y = offsetY;
+    // Place the first point.
+    sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+    cmd += strCmd;
+    
+    // First half of the square coil.
+    // Currently changing the x coordinate (1) or the y coordinate (0).
+    int changeX = 1;
+    // Currently adding (1) or subtracting (-1) the corresponding coordinate.
+    int sign = 1;
+    int signCounter = 0;
+    // Distance of the current segment (d = dout - m*(w+s)).
+    int m = 0;
+    int mCounter = - 1;
+    // Point index.
+    int index;
+    for (index = 0; index < 4*n; index++) {
+        if (changeX == 1) {
+            x = x + sign*(dout - m*(w+s));
+            changeX = 0;
+        } else {
+            y = y + sign*(dout - m*(w+s));
+            changeX = 1;
+        };
+        signCounter++;
+        if (signCounter >= 2) {
+            signCounter = 0;
+            sign = -sign;
+        };
+        mCounter++;
+        if (mCounter >= 2) {
+            mCounter = 0;
+            m++;
+        };
+        sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+        cmd += strCmd;
+    };
+    
+    // Inner endpoint of the wire.
+    x = x + w;
+    sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+    cmd += strCmd;
+    y = y + din - s;
+    sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+    cmd += strCmd;
+    
+    // Second half of the square coil.
+    // Currently changing the x coordinate (1) or the y coordinate (0).
+    changeX = 1;
+    // Currently adding (1) or subtracting (-1) the corresponding coordinate.
+    sign = 1;
+    signCounter = 1;
+    // Distance of the current segment (d = din + m*(w+s)).
+    m = 0;
+    mCounter = 0;
+    // Point index.
+    for (index = 0; index < 4*n-2; index++) {
+        if (changeX == 1) {
+            x = x + sign*(din + m*(w+s));
+            changeX = 0;
+        } else {
+            y = y + sign*(din + m*(w+s));
+            changeX = 1;
+        };
+        signCounter++;
+        if (signCounter >= 2) {
+            signCounter = 0;
+            sign = -sign;
+        };
+        mCounter++;
+        if (mCounter >= 2) {
+            mCounter = 0;
+            m++;
+        };
+        sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+        cmd += strCmd;
+    };
+    x = x - (din + m*(w+s) - s);
+    sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+    cmd += strCmd;
+    y = y - w;
+    sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+    cmd += strCmd;
+    
+    // Final point of the polygon (same as starting point).
+    sprintf(strCmd, "(%4.2f %4.2f);\n", offsetX, offsetY);
+    cmd += strCmd;
+    
+    // // Change layer to 16 (bottom).
+    // cmd += "layer 16;\n";
+    // // Start drawing the polygon (width: 0).
+    // cmd += "polygon " + signalName + " 0\n";
+    // x = offsetX - s;
+    // y = offsetY;
+    // sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+    // cmd += strCmd;
+    // y = y + n*(w+s);
+    // sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+    // cmd += strCmd;
+    // x = x + n*(w+s);
+    // sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+    // cmd += strCmd;
+    // y = y + w;
+    // sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+    // cmd += strCmd;
+    // x = x - n*(w+s) - w;
+    // sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+    // cmd += strCmd;
+    // y = y - n*(w+s) - w;
+    // sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+    // cmd += strCmd;
+    // x = x + w;
+    // sprintf(strCmd, "(%4.2f %4.2f);\n", x, y);
+    // cmd += strCmd;
+    
+    // Change layer to 1 (top).
+    cmd += "layer 1;\n";
+    
+    // Change the drill diameter.
+    sprintf(strCmd, "change drill %4.2f;\n", drill);
+    cmd += strCmd;
+    
+    // Place a via to connect top with bottom.
+    cmd += "via '" + signalName + "' ";
+    sprintf(strCmd, "%4.2f round 1-16 (%4.2f %4.2f);\n", diameter, offsetX + (n-1)*(w+s)+w/2, offsetY + n*(w+s)+w/2);
+    cmd += strCmd;
+    
+    // exit(cmd);
+}
+
+void doitb(void) {
+    // Change grid to mm.
+    cmd += "grid mm;\n";
+    // Change layer to 1 (top).
+    cmd += "layer 16;\n";
+    // Start drawing the polygon (width: 0).
+    cmd += "polygon " + signalName + " 0\n";
+    
+    // Length of the outer square.
+    real dout = din + 2*(n*w + (n-1)*s);
+    // Coordinates of the current point.
+    real x = offsetX;
+    real y = offsetY;
+    // Place the first point.
+    sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+    cmd += strCmd;
+    
+    // First half of the square coil.
+    // Currently changing the x coordinate (1) or the y coordinate (0).
+    int changeX = 1;
+    // Currently adding (1) or subtracting (-1) the corresponding coordinate.
+    int sign = 1;
+    int signCounter = 0;
+    // Distance of the current segment (d = dout - m*(w+s)).
+    int m = 0;
+    int mCounter = - 1;
+    // Point index.
+    int index;
+    for (index = 0; index < 4*n; index++) {
+        if (changeX == 1) {
+            x = x + sign*(dout - m*(w+s));
+            changeX = 0;
+        } else {
+            y = y + sign*(dout - m*(w+s));
+            changeX = 1;
+        };
+        signCounter++;
+        if (signCounter >= 2) {
+            signCounter = 0;
+            sign = -sign;
+        };
+        mCounter++;
+        if (mCounter >= 2) {
+            mCounter = 0;
+            m++;
+        };
+        sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+        cmd += strCmd;
+    };
+    
+    // Inner endpoint of the wire.
+    x = x + w;
+    sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+    cmd += strCmd;
+    y = y + din - s;
+    sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+    cmd += strCmd;
+    
+    // Second half of the square coil.
+    // Currently changing the x coordinate (1) or the y coordinate (0).
+    changeX = 1;
+    // Currently adding (1) or subtracting (-1) the corresponding coordinate.
+    sign = 1;
+    signCounter = 1;
+    // Distance of the current segment (d = din + m*(w+s)).
+    m = 0;
+    mCounter = 0;
+    // Point index.
+    for (index = 0; index < 4*n-2; index++) {
+        if (changeX == 1) {
+            x = x + sign*(din + m*(w+s));
+            changeX = 0;
+        } else {
+            y = y + sign*(din + m*(w+s));
+            changeX = 1;
+        };
+        signCounter++;
+        if (signCounter >= 2) {
+            signCounter = 0;
+            sign = -sign;
+        };
+        mCounter++;
+        if (mCounter >= 2) {
+            mCounter = 0;
+            m++;
+        };
+        sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+        cmd += strCmd;
+    };
+    x = x - (din + m*(w+s) - s);
+    sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+    cmd += strCmd;
+    y = y - w;
+    sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+    cmd += strCmd;
+    
+    // Final point of the polygon (same as starting point).
+    sprintf(strCmd, "(%4.2f %4.2f);\n", offsetX, offsetY);
+    cmd += strCmd;
+    
+    // // Change layer to 16 (bottom).
+    // cmd += "layer 1;\n";
+    // // Start drawing the polygon (width: 0).
+    // cmd += "polygon " + signalName + " 0\n";
+    // x = offsetX - s;
+    // y = offsetY;
+    // sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+    // cmd += strCmd;
+    // y = y + n*(w+s);
+    // sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+    // cmd += strCmd;
+    // x = x + n*(w+s);
+    // sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+    // cmd += strCmd;
+    // y = y + w;
+    // sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+    // cmd += strCmd;
+    // x = x - n*(w+s) - w;
+    // sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+    // cmd += strCmd;
+    // y = y - n*(w+s) - w;
+    // sprintf(strCmd, "(%4.2f %4.2f)\n", x, y);
+    // cmd += strCmd;
+    // x = x + w;
+    // sprintf(strCmd, "(%4.2f %4.2f);\n", x, y);
+    // cmd += strCmd;
+    
+    // Change layer to 1 (top).
+    cmd += "layer 16;\n";
+    
+    // Change the drill diameter.
+    sprintf(strCmd, "change drill %4.2f;\n", drill);
+    cmd += strCmd;
+    
+    // Place a via to connect top with bottom.
+    cmd += "via '" + signalName + "' ";
+    sprintf(strCmd, "%4.2f round 1-16 (%4.2f %4.2f);\n", diameter, offsetX + (n-1)*(w+s)+w/2, offsetY + n*(w+s)+w/2);
+    cmd += strCmd;
+    
+    // exit(cmd);
+}
+
+void magSheet(void) {
+    cmd += "layer 20;\n";
+    cmd += "WIRE (76.2 0) (0 0);\n";
+    n = 80;                     // number of turns
+    w = 0.06;                     // wire width in mm
+    s = 0.06;                   // distance between wires in mm
+    din = 1;                   // internal square length in mm
+    diameter = 0.35;            // diameter of the vias in mm
+    drill = 0.15;               // drill diameter of the vias in mm
+    layer = 1;                  // layer number
+    offsetX = 5.1;              // ADD TO UI
+    offsetY = 5.1;              // ADD TO UI
+    real gap = 3;                // ADD TO UI
+    signalName = "V_COIL";
+    real coilWidth = 2*(n*w+(n-1)*s+din/2);
+    int i;
+    int j;
+    int signalCounter = 1;
+
+    for(i = 0; i < 3; i++) {
+        for(j = 0; j < 3; j++) {
+            string b = "";
+            sprintf(b, "%d", signalCounter);
+            signalName = "V_COIL"+b;
+            doit();      
+            signalCounter++;      
+            offsetX += coilWidth + gap;               // vertical offset in mm
+        }
+        offsetX = 5.1;
+        offsetY += coilWidth + gap;               // horizontal offset in mm
+    }
+    offsetX = 5.1+coilWidth/2+gap/2;
+    offsetY = 5.1+coilWidth/2+gap/2;
+    for(i = 0; i < 3-1; i++) {
+        for(j = 0; j < 3-1; j++) {
+            layer = 16;
+            string b = "";
+            sprintf(b, "%d", signalCounter);
+            signalName = "V_COIL"+b;
+            doitb();      
+            signalCounter++;      
+            offsetX += coilWidth + gap;               // vertical offset in mm
+        }
+        offsetX = 5.1+coilWidth/2+gap/2;
+        offsetY += coilWidth + gap;               // horizontal offset in mm
+    }
+    exit(cmd);
+}
+
+
+
+/**
+ * Dialog box.
+ */
+dlgDialog("Copper square coil") {
+    dlgHBoxLayout {
+        dlgVBoxLayout {
+            dlgGridLayout {
+                dlgCell(1, 1) dlgLabel("<hr>");
+                dlgCell(1, 2) dlgLabel("<hr>");
+                dlgCell(2, 1) dlgLabel("Turns 'n'");                      // number of turns
+                dlgCell(2, 2) dlgIntEdit(n, 1, 100);
+                dlgCell(3, 1) dlgLabel("Wire width 'W'");                 // track width
+                dlgCell(3, 2) dlgRealEdit(w, 0.01, 25.0);
+                dlgCell(4, 1) dlgLabel("Distance between wires 'S'");     // distance between tracks
+                dlgCell(4, 2) dlgRealEdit(s, 0.01, 25.0);
+                dlgCell(5, 1) dlgLabel("Internal square length 'din'");   // internal square length
+                dlgCell(5, 2) dlgRealEdit(din, 0.01, 25.0);
+                dlgCell(6, 1) dlgLabel("<hr>");
+                dlgCell(6, 2) dlgLabel("<hr>");
+                dlgCell(7, 1) dlgLabel("Via diameter");                   // via diameter
+                dlgCell(7, 2) dlgRealEdit(diameter, 0.1, 10.0);
+                dlgCell(8, 1) dlgLabel("Via drill diameter");             // via drill diameter
+                dlgCell(8, 2) dlgRealEdit(drill, 0.1, 10.0);
+                dlgCell(9, 1) dlgLabel("<hr>");
+                dlgCell(9, 2) dlgLabel("<hr>");
+                dlgCell(10, 1) dlgLabel("Offset x");                      // place with horizontal offset
+                dlgCell(10, 2) dlgRealEdit(offsetX);
+                dlgCell(11, 1) dlgLabel("Offset y");                      // place with vertical offset
+                dlgCell(11, 2) dlgRealEdit(offsetY);
+                dlgCell(12, 1) dlgLabel("<hr>");
+                dlgCell(12, 2) dlgLabel("<hr>");
+                dlgCell(13, 1) dlgLabel("Signal name");                   // signal name
+                dlgCell(13, 2) dlgStringEdit(signalName);
+                dlgCell(14, 1) dlgLabel("<hr>");
+                dlgCell(14, 2) dlgLabel("<hr>");
+            }
+            dlgStretch(1);
+        }
+        dlgVBoxLayout {
+            dlgLabel("<img src=square-coil-ulp.bmp>");
+        }
+    }
+    dlgLabel("<qt>All measures are in <b>mm</b>.</qt>");
+    dlgHBoxLayout {
+        dlgPushButton("+&OK") {
+            dlgAccept();
+            magSheet();
+        }
+        dlgPushButton("-&Cancel") {
+            dlgReject();
+            exit(0);
+        }
+        dlgStretch(1);
+        dlgPushButton("&Help") {
+            dlgMessageBox(usage, "Ok");
+        }
+    }
+};
