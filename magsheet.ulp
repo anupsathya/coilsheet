@@ -345,9 +345,15 @@ void doitb(void) {
     // exit(cmd);
 }
 
-void magSheet(void) {
+void stickyNote(void) {
     cmd += "layer 20;\n";
-    cmd += "WIRE (76.2 0) (0 0);\n";
+    cmd += "wire (0 0) (0 76.2);\n";
+    cmd += "wire (0 76.2) (76.2 76.2);\n";
+    cmd += "wire (76.2 76.2) (76.2 0);\n";
+    cmd += "wire (76.2 0) (0 0);\n";
+}
+
+void magSheet(void) {
     n = 80;                     // number of turns
     w = 0.06;                     // wire width in mm
     s = 0.06;                   // distance between wires in mm
@@ -391,6 +397,7 @@ void magSheet(void) {
         offsetX = 5.1+coilWidth/2+gap/2;
         offsetY += coilWidth + gap;               // horizontal offset in mm
     }
+    stickyNote();
     exit(cmd);
 }
 
