@@ -346,15 +346,23 @@ void doitb(void) {
 }
 
 void stickyNote(void) {
+    int count = 3;
+    real w = 78.2*count;
+    real h = 78.2;
     cmd += "layer 20;\n";
-    cmd += "wire (0 0) (0 78.2);\n";
-    cmd += "wire (0 78.2) (78.2 78.2);\n";
-    cmd += "wire (78.2 78.2) (78.2 0);\n";
-    cmd += "wire (78.2 0) (0 0);\n";
+    sprintf(strCmd, "wire (0 0) (0 %4.2f);\n", h);
+    cmd += strCmd;
+    sprintf(strCmd, "wire (0 %4.2f) (%4.2f %4.2f);\n", h, w, h);
+    cmd += strCmd;
+    sprintf(strCmd, "wire (%4.2f %4.2f) (%4.2f 0);\n", w, h, w);
+    cmd += strCmd;
+    sprintf(strCmd, "wire (%4.2f 0) (0 0);\n", w);
+    cmd += strCmd;
 }
 
 real coilWidth;
-int i;
+int i,j;
+real gap;
 
 void addConnectors(void) {
     real startX = 5.1; // Add as input argument
@@ -367,6 +375,7 @@ void addConnectors(void) {
     //     points[19] = startX + increment;
     //     increment += increment;
     // }
+    for (j=0; j<12; j++){
     for (i=0; i<10; i++){
         real p1 = startX;
         real p2 = startY;
@@ -385,7 +394,9 @@ void addConnectors(void) {
         sprintf(strCmd, "polygon (%4.2f %4.2f) (%4.2f %4.2f) (%4.2f %4.2f) (%4.2f %4.2f) (%4.2f %4.2f);\n", p1, p2, p3, p4, p5, p6, p7, p8, p9, p10);
         cmd += strCmd;
         startX += increment*2;
-    }    
+    }
+    startX += gap-increment;   
+    } 
     // cmd += "polygon V_COIL1 0 (5.1 76.2) (10.1 76.2) (10.1 71.2) (5.1 71.2) (5.1 76.2);\n";
 }
 
@@ -399,13 +410,13 @@ void magSheet(void) {
     layer = 1;                  // layer number
     offsetX = 5.1;              // ADD TO UI
     offsetY = 5.1;              // ADD TO UI
-    real gap = 3;                // ADD TO UI
+    gap = 3;                // ADD TO UI
     signalName = "V_COIL";
     coilWidth = 2*(n*w+(n-1)*s+din/2);
     int j;
     int signalCounter = 1;
     int row = 3;
-    int column = 3;
+    int column = 12;
 
     for(i = 0; i < row; i++) {
         for(j = 0; j < column; j++) {
